@@ -16,12 +16,13 @@ def get_best_model():
     total_ram = psutil.virtual_memory().total / (1024**3)
     if total_ram > 12:
         return "fasttext"
-    elif total_ram > 4:
+    elif total_ram >= 8:
         return "fasttext-light"
     else:
         return "bpemb"
-
+    
 MODEL_TYPE = get_best_model()
+print(f"Selected model based on RAM: {MODEL_TYPE}")
 # Initialize lazily or on import. 
 # Note: In production, this consumes memory per worker.
 try:
@@ -174,7 +175,8 @@ def process_excel_file(file_obj, col_mapping):
         'success': len(df) - failed_count,
         'deepparse': deepparse_count,
         'usaddress': usaddress_count,
-        'failed': failed_count
+        'failed': failed_count,
+        'model_type': MODEL_TYPE
     }
 
     return output_filename, image_base64, stats
