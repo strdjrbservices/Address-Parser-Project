@@ -1,0 +1,8 @@
+Django
+pandas
+openpyxl
+xlrd
+psutil
+usaddress
+matplotlib
+deepparse
