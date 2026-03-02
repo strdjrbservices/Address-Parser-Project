@@ -10,6 +10,11 @@ import base64
 import os
 from django.conf import settings
 from deepparse.parser import AddressParser
+from django.core.cache import cache
+
+class TaskCanceledException(Exception):
+    """Custom exception for canceled tasks."""
+    pass
 
 # Initialize model once at module level to save time on requests
 def get_best_model():
@@ -54,7 +59,7 @@ def clean_addresses(df, address_col):
     df[address_col] = df[address_col].apply(apply_cleaning)
     return df
 
-def process_excel_file(file_obj, col_mapping):
+def process_excel_file(file_obj, col_mapping, task_id=None):
     # Load Data
     df = pd.read_excel(file_obj)
     
@@ -72,8 +77,24 @@ def process_excel_file(file_obj, col_mapping):
     
     parsed_rows = []
     failed_rows = []
+    total_rows = len(df)
 
     for index, row in df.iterrows():
+        # --- Progress & Cancellation Check ---
+        if task_id:
+            # Update progress and check for cancellation every 20 rows
+            if (index + 1) % 20 == 0:
+                if cache.get(f'{task_id}_cancel_requested'):
+                    raise TaskCanceledException("Task canceled by user.")
+                
+                progress = int(((index + 1) / total_rows) * 100)
+                cache.set(f'{task_id}_progress', {
+                    'state': 'PROCESSING',
+                    'progress': progress,
+                    'details': f'Processed {index + 1} of {total_rows} rows'
+                }, timeout=3600)
+        # --------------------------
+
         address_str = row[street_col]
         if pd.isna(address_str):
             continue
@@ -133,7 +154,8 @@ def process_excel_file(file_obj, col_mapping):
     clean_df = pd.DataFrame(parsed_rows, columns=["AddressLine1", "AddressLine2", "City", "State", "Zip Code", "ParserUsed"])
     
     # Save to Media
-    output_filename = f"Cleaned_{file_obj.name}"
+    base_name = os.path.basename(str(file_obj.name))
+    output_filename = f"Cleaned_{base_name}"
     output_path = os.path.join(settings.MEDIA_ROOT, output_filename)
     clean_df.to_excel(output_path, index=False)
 

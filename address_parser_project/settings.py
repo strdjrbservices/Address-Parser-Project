@@ -80,6 +80,15 @@ DATABASES = {
     }
 }
 
+# Cache configuration for background tasks
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "address-parser-cache",
+        "TIMEOUT": 3600, # Cache results for 1 hour
+    }
+}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
